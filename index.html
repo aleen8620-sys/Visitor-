@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>تسجيل الزوار</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<style>
+:root{
+  --bg:#eef3f7; --panel:#fff; --panel-2:#f6fafc;
+  --line:#d8e5ee; --line-soft:#e9f1f6;
+  --ink:#0a2c47; --ink-2:#3d6483; --ink-3:#7191aa;
+  --brand:#0d5a92; --brand-2:#1a76b8; --brand-ink:#fff; --brand-soft:#e4f0fa;
+  --good:#146b4f; --good-soft:#dcf1e7; --good-rule:#a3d6c2;
+  --warn:#8a5510; --warn-soft:#fbeedb; --warn-rule:#e8cb9c;
+  --danger:#96331f; --danger-soft:#fbe4dd; --danger-rule:#e9b4a4;
+  --r:14px;
+  --sans:"IBM Plex Sans Arabic",ui-sans-serif,system-ui,"Segoe UI",Tahoma,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#061119; --panel:#0e2135; --panel-2:#132b43;
+  --line:#1f3d59; --line-soft:#1a3450;
+  --ink:#e9f3fa; --ink-2:#a7c5dc; --ink-3:#7597b3;
+  --brand:#4fa9dd; --brand-2:#7cc6ef; --brand-ink:#04223a; --brand-soft:#12344f;
+  --good:#4dbc92; --good-soft:#0f2e24; --good-rule:#1e5643;
+  --warn:#dfa254; --warn-soft:#2f2010; --warn-rule:#5e4420;
+  --danger:#e0876f; --danger-soft:#33170f; --danger-rule:#6a3122;
+}}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.75;-webkit-text-size-adjust:100%;
+  display:flex;align-items:flex-start;justify-content:center;min-height:100vh;
+  padding:20px 16px 48px}
+.card{width:100%;max-width:440px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;
+  box-shadow:0 1px 2px rgba(10,44,71,.06),0 14px 34px -18px rgba(10,44,71,.35)}
+.head{padding:26px 22px 18px;text-align:center;border-bottom:1px solid var(--line-soft);
+  background:linear-gradient(180deg,var(--brand-soft),transparent)}
+.head h1{margin:0;font-size:20px;font-weight:700;line-height:1.3}
+.head p{margin:4px 0 0;font-size:13px;color:var(--ink-3)}
+.body{padding:22px}
+.grid{display:grid;gap:14px}
+.two{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.two>*{min-width:0}
+label.lbl{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+.inp{width:100%;font-family:inherit;font-size:15px;padding:11px 13px;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink)}
+.inp:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:var(--brand)}
+.inp.ok{border-color:var(--good)} .inp.bad{border-color:var(--danger)}
+.phgrp{display:flex}
+.phgrp .cc{flex:none;width:62px;background:var(--line-soft);color:var(--ink-2);
+  font-family:var(--mono);font-size:13px;display:grid;place-items:center;
+  border:1px solid var(--line);border-inline-start:none;
+  border-start-start-radius:10px;border-end-start-radius:10px}
+.phgrp .inp{border-start-start-radius:0;border-end-start-radius:0}
+.hint{font-size:11.5px;color:var(--ink-3);margin-top:4px}
+.hint.ok{color:var(--good)} .hint.bad{color:var(--danger)}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{font-family:inherit;font-size:13px;font-weight:600;padding:9px 12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
+  cursor:pointer;flex:1;min-width:84px}
+.chip[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+.btn{width:100%;font-family:inherit;font-size:15px;font-weight:600;padding:13px;border-radius:10px;
+  border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);cursor:pointer}
+.btn:hover{background:var(--brand-2);border-color:var(--brand-2)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.ghost{background:none;color:var(--ink-2);border-color:var(--line)}
+.note{border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.65;
+  border:1px solid var(--line);background:var(--panel-2)}
+.note.g{background:var(--good-soft);border-color:var(--good-rule);color:var(--good)}
+.note.w{background:var(--warn-soft);border-color:var(--warn-rule);color:var(--warn)}
+.note.d{background:var(--danger-soft);border-color:var(--danger-rule);color:var(--danger)}
+.done{text-align:center;display:grid;gap:12px;justify-items:center}
+.done .code{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:.16em}
+#qr img,#qr canvas{border:1px solid var(--line);border-radius:12px;padding:8px;background:#fff}
+.tag{display:inline-block;font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink-3)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;
+  border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="head">
+    <h1 id="evname">تسجيل الزوار</h1>
+    <p id="evsub">جارِ التحميل…</p>
+  </div>
+  <div class="body" id="body">
+    <div class="note"><span class="spin"></span> لحظة…</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ١. ضع هنا قيمتي مشروعك في Supabase
+      (Project Settings ← API)
+   ============================================================ */
+var SUPABASE_URL = "https://vkdcmirfahdttfecouli.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZGNtaXJmYWhkdHRmZWNvdWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNzE0NjgsImV4cCI6MjEwNjg0NzQ2OH0.P6CZq7-jRjAxeZaJ1efcQsWVt1d9swp8M0KIXRlVFU8";
+var EVENT_SLUG = "jeddah-2026";   // نفس الـ slug في setup.sql
+/* ============================================================ */
+
+(function(){
+  "use strict";
+
+  var sb = null, S = { cat:"visitor", busy:false, done:null, open:true, err:"" };
+
+  var CATS = [["visitor","زائر"],["exhibitor","عارض"],["media","إعلامي"],["vip","كبار الشخصيات"]];
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(m){
+    return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[m]; }); }
+  function $(s){ return document.querySelector(s); }
+  function digits(v){ return String(v||"").replace(/\D/g,"").replace(/^(966|0)+/,""); }
+  function okPhone(d){ return /^5\d{8}$/.test(d); }
+  function fmt(d){ return d.length===9 ? "+966 "+d.slice(0,2)+" "+d.slice(2,5)+" "+d.slice(5) : "+966 "+d; }
+
+  function viewForm(){
+    return '<form id="f" class="grid" autocomplete="off">'+
+      '<div><label class="lbl" for="n">الاسم الكامل *</label>'+
+        '<input class="inp" id="n" maxlength="80" placeholder="الاسم الثلاثي" required></div>'+
+      '<div><label class="lbl" for="p">رقم الجوال *</label>'+
+        '<div class="phgrp"><input class="inp" id="p" dir="ltr" inputmode="numeric" '+
+          'placeholder="5xxxxxxxx" maxlength="14" required><span class="cc">+966</span></div>'+
+        '<div class="hint" id="ph">يبدأ بـ 5 ويتكوّن من 9 أرقام</div></div>'+
+      '<div><label class="lbl">أنت تحضر بصفتك</label><div class="chips">'+
+        CATS.map(function(c){ return '<button type="button" class="chip" data-cat="'+c[0]+'" '+
+          'aria-pressed="'+(S.cat===c[0])+'">'+esc(c[1])+'</button>'; }).join("")+'</div></div>'+
+      '<div class="two">'+
+        '<div><label class="lbl" for="e">البريد (اختياري)</label>'+
+          '<input class="inp" id="e" dir="ltr" maxlength="120" placeholder="name@example.com"></div>'+
+        '<div><label class="lbl" for="c">جهة العمل (اختياري)</label>'+
+          '<input class="inp" id="c" maxlength="80"></div>'+
+      '</div>'+
+      '<div><label class="lbl" for="t">المسمى الوظيفي (اختياري)</label>'+
+        '<input class="inp" id="t" maxlength="80"></div>'+
+      (S.err ? '<div class="note '+(S.errKind||"d")+'">'+S.err+'</div>' : '')+
+      '<button class="btn" type="submit" id="go">تسجيل وإصدار الرمز</button>'+
+      '<div class="hint" style="text-align:center">بتسجيلك توافق على استخدام بياناتك لأغراض تنظيم المعرض</div>'+
+    '</form>';
+  }
+
+  function viewDone(){
+    var d = S.done;
+    return '<div class="done">'+
+      '<span class="note g" style="width:100%;text-align:center">تم تسجيلك بنجاح</span>'+
+      '<div style="font-size:17px;font-weight:700">'+esc(d.name)+'</div>'+
+      '<div id="qr"></div>'+
+      '<span class="tag">رمز الدخول</span>'+
+      '<div class="code">'+esc(d.code)+'</div>'+
+      '<div class="note" style="width:100%;text-align:start">'+
+        '<b>صوّر هذي الشاشة الآن.</b> اعرض الرمز عند البوابة للدخول. '+
+        (d.email ? 'وأرسلنا نسخة إلى بريدك.' : 'ولو فقدته، ابحث عنك موظف الاستقبال باسمك أو جوالك.')+
+      '</div>'+
+      '<button class="btn ghost" id="again">تسجيل شخص آخر</button>'+
+    '</div>';
+  }
+
+  function viewClosed(){
+    return '<div class="note w" style="text-align:center">'+
+      '<b>التسجيل مغلق حالياً</b><br>رابط التسجيل غير متاح لهذا المعرض في الوقت الحالي.</div>';
+  }
+
+  function viewBroken(msg){
+    return '<div class="note d"><b>تعذّر الاتصال بالنظام.</b><br>'+esc(msg||"")+'</div>';
+  }
+
+  function render(){
+    var b = $("#body");
+    if (!sb)            { b.innerHTML = viewBroken("تحقق من إعدادات Supabase في أعلى الملف."); return; }
+    if (S.done)         { b.innerHTML = viewDone(); drawQR(S.done.code); return; }
+    if (!S.open)        { b.innerHTML = viewClosed(); return; }
+    b.innerHTML = viewForm();
+  }
+
+  function drawQR(code){
+    var box = $("#qr"); if (!box || typeof QRCode === "undefined") return;
+    box.innerHTML = "";
+    try { new QRCode(box, { text:String(code), width:180, height:180,
+                            correctLevel: QRCode.CorrectLevel.M }); }
+    catch(e){ box.textContent = code; }
+  }
+
+  document.addEventListener("click", function(ev){
+    var b = ev.target.closest("button"); if (!b) return;
+    if (b.dataset.cat){ S.cat = b.dataset.cat; S.err=""; render(); return; }
+    if (b.id === "again"){ S.done = null; S.cat = "visitor"; S.err=""; render(); return; }
+  });
+
+  document.addEventListener("input", function(ev){
+    if (ev.target.id !== "p") return;
+    var d = digits(ev.target.value), h = $("#ph");
+    ev.target.classList.toggle("ok", okPhone(d));
+    ev.target.classList.toggle("bad", d.length > 0 && !okPhone(d));
+    if (h){
+      h.className = "hint" + (d.length===0 ? "" : okPhone(d) ? " ok" : " bad");
+      h.textContent = d.length===0 ? "يبدأ بـ 5 ويتكوّن من 9 أرقام"
+                    : okPhone(d) ? fmt(d) : "رقم الجوال غير صحيح";
+    }
+  });
+
+  document.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    if (ev.target.id !== "f" || !sb || S.busy) return;
+
+    var name = ($("#n").value || "").trim();
+    var ph   = digits($("#p").value || "");
+    S.err = ""; S.errKind = "d";
+
+    if (name.length < 2){ S.err = "اكتب الاسم الكامل"; return render(); }
+    if (!okPhone(ph)){ S.err = "رقم الجوال غير صحيح — يبدأ بـ 5 ويتكوّن من 9 أرقام"; return render(); }
+
+    var email = ($("#e").value || "").trim();
+    var payload = {
+      p_event_slug: EVENT_SLUG,
+      p_name: name,
+      p_phone: ph,
+      p_category: S.cat,
+      p_email: email || null,
+      p_company: ($("#c").value || "").trim() || null,
+      p_title: ($("#t").value || "").trim() || null
+    };
+
+    S.busy = true;
+    var go = $("#go");
+    if (go){ go.disabled = true; go.innerHTML = '<span class="spin"></span> جارِ التسجيل…'; }
+
+    sb.rpc("register_visitor", payload).then(function(res){
+      S.busy = false;
+      if (res.error){
+        S.err = "تعذّر التسجيل — حاول مرة أخرى"; return render();
+      }
+      var r = res.data || {};
+      if (r.ok){
+        S.done = { name: r.name || name, code: r.code, email: !!email };
+        return render();
+      }
+      if (r.error === "duplicate"){
+        S.errKind = "w";
+        S.err = "أنت مسجّل مسبقاً في هذا المعرض — رمزك: <b>" + esc(r.code) + "</b>";
+      } else if (r.error === "closed"){
+        S.open = false;
+      } else if (r.error === "bad_phone"){
+        S.err = "رقم الجوال غير صحيح";
+      } else if (r.error === "bad_name"){
+        S.err = "اكتب الاسم الكامل";
+      } else if (r.error === "no_event"){
+        S.err = "المعرض غير موجود — تحقق من EVENT_SLUG";
+      } else {
+        S.err = "تعذّر التسجيل — حاول مرة أخرى";
+      }
+      render();
+    }, function(){
+      S.busy = false; S.err = "تعذّر الاتصال بالخادم"; render();
+    });
+  });
+
+  /* ---- boot ---- */
+  try {
+    if (SUPABASE_URL.indexOf("XXXX") >= 0) throw new Error("لم تُضبط إعدادات Supabase بعد");
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch(e){
+    $("#evsub").textContent = "";
+    $("#body").innerHTML = viewBroken(e.message);
+  }
+
+  if (sb){
+    sb.rpc("event_info", { p_slug: EVENT_SLUG }).then(function(res){
+      var d = (res && res.data) || {};
+      if (d.ok){
+        $("#evname").textContent = d.name_ar || "تسجيل الزوار";
+        $("#evsub").textContent  = "سجّل بياناتك ويصلك رمز الدخول فوراً";
+        S.open = !!d.open;
+      } else {
+        $("#evsub").textContent = "";
+        S.open = false;
+      }
+      render();
+    }, function(){
+      $("#evsub").textContent = "";
+      $("#body").innerHTML = viewBroken("تعذّر الوصول لقاعدة البيانات.");
+    });
+  }
+})();
+</script>
+</body>
+</html>
