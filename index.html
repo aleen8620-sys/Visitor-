@@ -107,13 +107,19 @@ label.lbl{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);marg
    ============================================================ */
 var SUPABASE_URL = "https://vkdcmirfahdttfecouli.supabase.co";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZGNtaXJmYWhkdHRmZWNvdWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNzE0NjgsImV4cCI6MjEwNjg0NzQ2OH0.P6CZq7-jRjAxeZaJ1efcQsWVt1d9swp8M0KIXRlVFU8";
-var EVENT_SLUG = "jeddah-2026";   // نفس الـ slug في setup.sql
+var DEFAULT_SLUG = "jeddah-2026";  // يُستخدم إذا لم يحمل الرابط معرّفاً
+var EVENT_SLUG = (function(){
+  try{ var q = new URLSearchParams(location.search).get("e");
+       return (q && /^[a-z0-9\-]{2,50}$/i.test(q)) ? q.toLowerCase() : DEFAULT_SLUG; }
+  catch(e){ return DEFAULT_SLUG; }
+})();
 /* ============================================================ */
 
 (function(){
   "use strict";
 
   var sb = null, S = { cat:"visitor", busy:false, done:null, open:true, err:"" };
+  var EV = { name:"", note:"", logo:"", accent:"" };
 
   var CATS = [["visitor","زائر"],["exhibitor","عارض"],["media","إعلامي"],["vip","كبار الشخصيات"]];
   function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(m){
@@ -140,8 +146,12 @@ var EVENT_SLUG = "jeddah-2026";   // نفس الـ slug في setup.sql
         '<div><label class="lbl" for="c">جهة العمل (اختياري)</label>'+
           '<input class="inp" id="c" maxlength="80"></div>'+
       '</div>'+
-      '<div><label class="lbl" for="t">المسمى الوظيفي (اختياري)</label>'+
-        '<input class="inp" id="t" maxlength="80"></div>'+
+      '<div class="two">'+
+        '<div><label class="lbl" for="t">المسمى الوظيفي (اختياري)</label>'+
+          '<input class="inp" id="t" maxlength="80"></div>'+
+        '<div><label class="lbl" for="y">الدولة (اختياري)</label>'+
+          '<input class="inp" id="y" maxlength="60" placeholder="السعودية"></div>'+
+      '</div>'+
       (S.err ? '<div class="note '+(S.errKind||"d")+'">'+S.err+'</div>' : '')+
       '<button class="btn" type="submit" id="go">تسجيل وإصدار الرمز</button>'+
       '<div class="hint" style="text-align:center">بتسجيلك توافق على استخدام بياناتك لأغراض تنظيم المعرض</div>'+
@@ -226,7 +236,8 @@ var EVENT_SLUG = "jeddah-2026";   // نفس الـ slug في setup.sql
       p_category: S.cat,
       p_email: email || null,
       p_company: ($("#c").value || "").trim() || null,
-      p_title: ($("#t").value || "").trim() || null
+      p_title: ($("#t").value || "").trim() || null,
+      p_country: (($("#y")||{}).value || "").trim() || null
     };
 
     S.busy = true;
@@ -276,8 +287,26 @@ var EVENT_SLUG = "jeddah-2026";   // نفس الـ slug في setup.sql
     sb.rpc("event_info", { p_slug: EVENT_SLUG }).then(function(res){
       var d = (res && res.data) || {};
       if (d.ok){
-        $("#evname").textContent = d.name_ar || "تسجيل الزوار";
-        $("#evsub").textContent  = "سجّل بياناتك ويصلك رمز الدخول فوراً";
+        EV.name   = d.name_ar  || "تسجيل الزوار";
+        EV.note   = d.note_ar  || "سجّل بياناتك ويصلك رمز الدخول فوراً";
+        EV.logo   = d.logo_url || "";
+        EV.accent = d.accent   || "";
+        document.title = EV.name;
+        $("#evname").textContent = EV.name;
+        $("#evsub").textContent  = EV.note;
+        if (/^#[0-9a-fA-F]{6}$/.test(EV.accent)){
+          document.documentElement.style.setProperty("--brand", EV.accent);
+        }
+        if (EV.logo){
+          var h = document.querySelector(".head");
+          if (h){
+            var im = document.createElement("img");
+            im.src = EV.logo; im.alt = ""; im.referrerPolicy = "no-referrer";
+            im.style.cssText = "max-height:52px;max-width:70%;margin:0 auto 10px;display:block";
+            im.onerror = function(){ im.remove(); };
+            h.insertBefore(im, h.firstChild);
+          }
+        }
         S.open = !!d.open;
       } else {
         $("#evsub").textContent = "";
