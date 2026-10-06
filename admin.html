@@ -136,324 +136,538 @@ tbody tr:last-child td{border-bottom:none}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
 [hidden]{display:none!important}
-</style>
-</head>
+
+/* ===== إضافات التحديث الثاني ===== */
+.evbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:16px;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 14px}
+.evbar .k{font-size:12.5px;color:var(--ink-3);flex:none}
+.evbar select{flex:1;min-width:180px}
+.evcard{border:1px solid var(--line);border-radius:12px;padding:15px;background:var(--panel-2);
+  display:grid;gap:9px;margin-bottom:12px}
+.evcard .r1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.evcard .r1 b{font-size:15px}
+.evcard .lnk{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);
+  word-break:break-all;background:var(--panel);border:1px solid var(--line);
+  border-radius:7px;padding:6px 9px;flex:1;min-width:0}
+.evcard .st{display:flex;gap:16px;font-size:12.5px;color:var(--ink-2);flex-wrap:wrap}
+.evcard .st b{font-family:var(--mono)}
+.sw{width:42px;height:23px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel-2);position:relative;cursor:pointer;flex:none;padding:0}
+.sw::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:17px;height:17px;
+  border-radius:50%;background:var(--ink-3);transition:inset-inline-start .15s,background .15s}
+.sw[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand)}
+.sw[aria-pressed="true"]::after{inset-inline-start:21px;background:var(--brand)}
+.swrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft)}
+.swrow:first-child{border-top:none}
+.swrow .t{flex:1;font-size:13.5px}
+.colorrow{display:flex;gap:7px;flex-wrap:wrap}
+.colorrow button{width:30px;height:30px;border-radius:8px;border:2px solid transparent;cursor:pointer;padding:0}
+.colorrow button[aria-pressed="true"]{border-color:var(--ink)}
+</style></head>
 <body>
 
 <div class="wrap">
   <header class="top" id="top" hidden>
-    <h1 id="evname">لوحة الاستقبال</h1>
+    <h1 id="evname">لوحة النظام</h1>
     <div class="g">
       <span class="who" id="who"></span>
       <button class="btn ghost sm" id="logout">خروج</button>
     </div>
   </header>
   <div class="tabs" id="tabs" hidden>
-    <button class="tab" data-tab="gate" aria-pressed="true">البوابة</button>
-    <button class="tab" data-tab="list" aria-pressed="false">الزوار</button>
-    <button class="tab" data-tab="quick" aria-pressed="false">تسجيل سريع</button>
-    <button class="tab" data-tab="badge" aria-pressed="false">الباج</button>
-    <button class="tab" data-tab="rep" aria-pressed="false">التقارير</button>
+    <button class="tab" data-tab="gate"   aria-pressed="true">البوابة</button>
+    <button class="tab" data-tab="list"   aria-pressed="false">الزوار</button>
+    <button class="tab" data-tab="quick"  aria-pressed="false">تسجيل سريع</button>
+    <button class="tab" data-tab="badge"  aria-pressed="false">الباج</button>
+    <button class="tab" data-tab="rep"    aria-pressed="false">التقارير</button>
+    <button class="tab" data-tab="events" aria-pressed="false">المعارض</button>
   </div>
   <main id="view"><div class="note" style="margin-top:40px"><span class="spin"></span> لحظة…</div></main>
 </div>
 
 <script>
-/* ============================================================
-   نفس القيم الموجودة في index.html
-   ============================================================ */
+/* ============================================================ */
 var SUPABASE_URL = "https://vkdcmirfahdttfecouli.supabase.co";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZGNtaXJmYWhkdHRmZWNvdWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNzE0NjgsImV4cCI6MjEwNjg0NzQ2OH0.P6CZq7-jRjAxeZaJ1efcQsWVt1d9swp8M0KIXRlVFU8";
-var EVENT_SLUG = "jeddah-2026";
 /* ============================================================ */
 
 (function(){
   "use strict";
-  var sb=null, SESSION=null, VISITORS=[], EVNAME="";
-  var S={tab:"gate", q:"", gate:null, badge:null, msg:"", loading:true};
+  var sb=null, SESSION=null, VISITORS=[], EVENTS=[], CUR=null, ISADMIN=false;
+  var S={tab:"gate",q:"",gate:null,badge:null,msg:"",edit:null};
 
   var CATS={visitor:["زائر","n","var(--c1)"],exhibitor:["عارض","w","var(--c2)"],
             media:["إعلامي","b","var(--c3)"],vip:["كبار الشخصيات","v","var(--c4)"]};
-  function catName(c){ return (CATS[c]||CATS.visitor)[0]; }
-  function catCls(c){ return (CATS[c]||CATS.visitor)[1]; }
-  function catCol(c){ return (CATS[c]||CATS.visitor)[2]; }
+  function cN(c){return (CATS[c]||CATS.visitor)[0];}
+  function cC(c){return (CATS[c]||CATS.visitor)[1];}
+  function cL(c){return (CATS[c]||CATS.visitor)[2];}
 
-  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(m){
-    return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[m]; }); }
-  function $(s){ return document.querySelector(s); }
-  function digits(v){ return String(v||"").replace(/\D/g,"").replace(/^(966|0)+/,""); }
-  function fmt(d){ d=String(d||""); return d.length===9?"+966 "+d.slice(0,2)+" "+d.slice(2,5)+" "+d.slice(5):"+966 "+d; }
-  function hhmm(t){ if(!t)return "—"; try{ return new Date(t).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return "—"; } }
-  function hourOf(t){ try{ return new Date(t).getHours(); }catch(e){ return -1; } }
+  var PALETTE=["#0d5a92","#146b4f","#8c3f86","#b04a34","#8a6410","#3d6483"];
 
-  function qr(el,text,size){
-    if(!el||typeof QRCode==="undefined")return;
-    el.innerHTML="";
-    try{ new QRCode(el,{text:String(text),width:size,height:size,correctLevel:QRCode.CorrectLevel.M}); }
-    catch(e){ el.textContent=text; }
-  }
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(m){
+    return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[m];});}
+  function $(s){return document.querySelector(s);}
+  function dg(v){return String(v||"").replace(/\D/g,"").replace(/^(966|0)+/,"");}
+  function fp(d){d=String(d||"");return d.length===9?"+966 "+d.slice(0,2)+" "+d.slice(2,5)+" "+d.slice(5):"+966 "+d;}
+  function hm(t){if(!t)return "—";try{return new Date(t).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});}catch(e){return "—";}}
+  function hr(t){try{return new Date(t).getHours();}catch(e){return -1;}}
+  function dIn(t){ if(!t) return ""; try{ return new Date(t).toISOString().slice(0,16); }catch(e){ return ""; } }
+  function qr(el,t,sz){ if(!el||typeof QRCode==="undefined")return; el.innerHTML="";
+    try{ new QRCode(el,{text:String(t),width:sz,height:sz,correctLevel:QRCode.CorrectLevel.M}); }
+    catch(e){ el.textContent=t; } }
+  function badgeOf(e){ var b=(e&&e.badge)||{};
+    return {company:b.company!==false,title:b.title!==false,country:!!b.country,
+            logo:b.logo!==false,show_code:b.show_code!==false,
+            phrase_ar:b.phrase_ar||"",phrase_en:b.phrase_en||""}; }
+  function regLink(e){ return location.origin + "/?e=" + encodeURIComponent(e.slug); }
 
-  /* ---------- login ---------- */
-  function viewLogin(){
+  /* ---------------- login ---------------- */
+  function vLogin(){
     return '<div class="card login"><div class="hd"><h2>دخول الموظفين</h2></div><div class="bd">'+
       '<form id="lf" class="grid">'+
         '<div><label class="lbl" for="le">البريد الإلكتروني</label>'+
-          '<input class="inp" id="le" type="email" dir="ltr" autocomplete="username" required></div>'+
+          '<input class="inp" id="le" type="email" dir="ltr" autocomplete="username"></div>'+
         '<div><label class="lbl" for="lp">كلمة المرور</label>'+
-          '<input class="inp" id="lp" type="password" autocomplete="current-password" required></div>'+
+          '<input class="inp" id="lp" type="password" autocomplete="current-password"></div>'+
         (S.msg?'<div class="note d">'+esc(S.msg)+'</div>':'')+
         '<button class="btn w" type="submit" id="lb">دخول</button>'+
-        '<button class="btn ghost w" type="button" id="su">إنشاء حساب جديد</button>'+
       '</form></div></div>';
   }
 
-  /* ---------- gate ---------- */
-  function viewGate(){
+  /* ---------------- shared: event bar ---------------- */
+  function evBar(){
+    if(EVENTS.length<2 && !CUR) return "";
+    return '<div class="evbar"><span class="k">المعرض</span>'+
+      '<select class="inp" id="evpick">'+ EVENTS.map(function(e){
+        return '<option value="'+esc(e.id)+'"'+(CUR&&e.id===CUR.id?" selected":"")+'>'+
+          esc(e.name_ar)+(e.is_open?"":" — مغلق")+'</option>'; }).join("")+'</select>'+
+      '<button class="btn ghost sm" data-tab="events">إدارة المعارض</button></div>';
+  }
+
+  /* ---------------- gate ---------------- */
+  function vGate(){
     var o="";
-    if(S.gate){ var g=S.gate;
+    if(S.gate){var g=S.gate;
       o='<div class="out '+g.kind+'"><div class="big">'+esc(g.title)+'</div>'+
         (g.mid?'<div class="mid">'+esc(g.mid)+'</div>':'')+
-        (g.chip?'<div><span class="chip '+g.cls+'">'+esc(g.chip)+'</span></div>':'')+'</div>';
-    }
-    return '<div class="card"><div class="hd"><h2>البوابة الإلكترونية</h2>'+
+        (g.chip?'<div><span class="chip '+g.cls+'">'+esc(g.chip)+'</span></div>':'')+'</div>';}
+    return evBar()+'<div class="card"><div class="hd"><h2>البوابة الإلكترونية</h2>'+
       '<div class="s">اكتب رمز الزائر المكوّن من ٨ أرقام</div></div><div class="bd">'+
       '<form id="gf" autocomplete="off">'+
-        '<input class="bigin" id="gc" placeholder="00000000" maxlength="8" inputmode="numeric" dir="ltr" autofocus>'+
+        '<input class="bigin" id="gc" placeholder="00000000" maxlength="8" inputmode="numeric" dir="ltr">'+
         '<button class="btn w" type="submit" style="margin-top:12px">تسجيل الدخول</button>'+
       '</form>'+o+'</div></div>';
   }
 
-  /* ---------- list ---------- */
-  function viewList(){
-    var q=S.q.trim().toLowerCase(), qd=digits(S.q), qc=S.q.replace(/\D/g,"");
-    var rows=VISITORS.filter(function(v){
-      if(!q) return true;
-      var hay=((v.name||"")+" "+(v.company||"")+" "+(v.email||"")+" "+(v.code||"")).toLowerCase();
-      return hay.indexOf(q)>=0 || (qd.length>3 && String(v.phone||"").indexOf(qd)>=0)
-          || (qc.length>2 && String(v.code||"").indexOf(qc)>=0);
+  /* ---------------- visitors ---------------- */
+  function rows(){
+    var all=CUR?VISITORS.filter(function(v){return v.event_id===CUR.id;}):VISITORS;
+    var q=S.q.trim().toLowerCase(), qd=dg(S.q), qc=S.q.replace(/\D/g,"");
+    if(!q) return all;
+    return all.filter(function(v){
+      var h=((v.name||"")+" "+(v.company||"")+" "+(v.email||"")+" "+(v.code||"")).toLowerCase();
+      return h.indexOf(q)>=0 || (qd.length>3&&String(v.phone||"").indexOf(qd)>=0)
+          || (qc.length>2&&String(v.code||"").indexOf(qc)>=0);
     });
-    var inC=VISITORS.filter(function(v){return v.checked_in_at;}).length;
+  }
+  function scoped(){ return CUR?VISITORS.filter(function(v){return v.event_id===CUR.id;}):VISITORS; }
 
+  function vList(){
+    var all=scoped(), r=rows(), inC=all.filter(function(v){return v.checked_in_at;}).length;
     var tiles='<div class="grid g4" style="margin-bottom:16px">'+
-      '<div class="tile"><div class="n">'+VISITORS.length+'</div><div class="k">مسجّل</div></div>'+
+      '<div class="tile"><div class="n">'+all.length+'</div><div class="k">مسجّل</div></div>'+
       '<div class="tile"><div class="n">'+inC+'</div><div class="k">حضر فعلاً</div></div>'+
-      '<div class="tile"><div class="n">'+(VISITORS.length-inC)+'</div><div class="k">لم يحضر</div></div>'+
-      '<div class="tile"><div class="n">'+(VISITORS.length?Math.round(inC/VISITORS.length*100):0)+'%</div>'+
+      '<div class="tile"><div class="n">'+(all.length-inC)+'</div><div class="k">لم يحضر</div></div>'+
+      '<div class="tile"><div class="n">'+(all.length?Math.round(inC/all.length*100):0)+'%</div>'+
         '<div class="k">نسبة الحضور</div></div></div>';
-
     var body;
-    if(!VISITORS.length){
-      body='<div class="empty"><b>لا يوجد زوار بعد</b>شارك رابط التسجيل، أو سجّل زائراً من تبويب «تسجيل سريع».</div>';
-    } else if(!rows.length){
-      body='<div class="empty"><b>لا نتائج</b>جرّب بحثاً آخر.</div>';
-    } else {
-      body='<div class="scroll"><table><thead><tr>'+
+    if(!all.length) body='<div class="empty"><b>لا يوجد زوار في هذا المعرض</b>شارك رابط التسجيل، أو سجّل من تبويب «تسجيل سريع».</div>';
+    else if(!r.length) body='<div class="empty"><b>لا نتائج</b>جرّب بحثاً آخر.</div>';
+    else body='<div class="scroll"><table><thead><tr>'+
         '<th>الاسم</th><th>الصفة</th><th>الجهة</th><th>الجوال</th><th>الرمز</th>'+
-        '<th>الحالة</th><th>طريقة التسجيل</th><th>الوقت</th><th></th></tr></thead><tbody>'+
-        rows.map(function(v){
-          return '<tr><td><b>'+esc(v.name)+'</b>'+
-            (v.job_title?'<div style="font-size:11.5px;color:var(--ink-3)">'+esc(v.job_title)+'</div>':'')+'</td>'+
-            '<td><span class="chip '+catCls(v.category)+'">'+esc(catName(v.category))+'</span></td>'+
-            '<td>'+esc(v.company||"—")+'</td>'+
-            '<td><span class="mono">'+esc(fmt(v.phone))+'</span></td>'+
-            '<td><span class="mono">'+esc(v.code)+'</span></td>'+
-            '<td>'+(v.checked_in_at?'<span class="chip g">دخل</span>':'<span class="chip n">مسجّل</span>')+'</td>'+
-            '<td>'+(v.source==="onsite"?"في الموقع":"أونلاين")+'</td>'+
-            '<td class="mono">'+esc(hhmm(v.checked_in_at))+'</td>'+
-            '<td><button class="btn ghost sm" data-badge="'+esc(v.code)+'">باج</button></td></tr>';
-        }).join("")+'</tbody></table></div>';
-    }
-    return tiles+'<div class="card"><div class="hd"><h2>سجل الزوار</h2>'+
+        '<th>الحالة</th><th>التسجيل</th><th>الوقت</th><th></th></tr></thead><tbody>'+
+        r.map(function(v){ return '<tr><td><b>'+esc(v.name)+'</b>'+
+          (v.job_title?'<div style="font-size:11.5px;color:var(--ink-3)">'+esc(v.job_title)+'</div>':'')+'</td>'+
+          '<td><span class="chip '+cC(v.category)+'">'+esc(cN(v.category))+'</span></td>'+
+          '<td>'+esc(v.company||"—")+'</td>'+
+          '<td><span class="mono">'+esc(fp(v.phone))+'</span></td>'+
+          '<td><span class="mono">'+esc(v.code)+'</span></td>'+
+          '<td>'+(v.checked_in_at?'<span class="chip g">دخل</span>':'<span class="chip n">مسجّل</span>')+'</td>'+
+          '<td>'+(v.source==="onsite"?"في الموقع":"أونلاين")+'</td>'+
+          '<td class="mono">'+esc(hm(v.checked_in_at))+'</td>'+
+          '<td><button class="btn ghost sm" data-badge="'+esc(v.code)+'">باج</button></td></tr>';}).join("")+
+        '</tbody></table></div>';
+    return evBar()+tiles+'<div class="card"><div class="hd"><h2>سجل الزوار</h2>'+
       '<button class="btn ghost sm" id="refresh" style="margin-inline-start:auto">تحديث</button>'+
       '<button class="btn ghost sm" id="csv">تصدير CSV</button></div>'+
-      (VISITORS.length?'<div class="bd" style="padding:12px 18px;border-bottom:1px solid var(--line-soft)">'+
+      (all.length?'<div class="bd" style="padding:12px 18px;border-bottom:1px solid var(--line-soft)">'+
         '<input class="inp" id="sbx" placeholder="ابحث بالاسم أو الجوال أو الرمز أو الجهة" value="'+esc(S.q)+'"></div>':'')+
       body+'</div>';
   }
 
-  /* ---------- quick ---------- */
-  function viewQuick(){
-    return '<div class="card"><div class="hd"><h2>تسجيل سريع في الموقع</h2>'+
-      '<div class="s">للزوار غير المعتادين على التسجيل الإلكتروني — الاسم والجوال فقط</div></div><div class="bd">'+
+  /* ---------------- quick ---------------- */
+  function vQuick(){
+    return evBar()+'<div class="card"><div class="hd"><h2>تسجيل سريع في الموقع</h2>'+
+      '<div class="s">الاسم والجوال فقط — لغير المعتادين على التسجيل الإلكتروني</div></div><div class="bd">'+
       '<form id="qf" class="grid" autocomplete="off">'+
         '<div><label class="lbl" for="qn">الاسم الكامل</label><input class="inp" id="qn" maxlength="80"></div>'+
         '<div><label class="lbl" for="qp">رقم الجوال</label>'+
           '<input class="inp" id="qp" dir="ltr" inputmode="numeric" placeholder="5xxxxxxxx" maxlength="14"></div>'+
-        '<div id="qmsg"></div>'+
-        '<button class="btn w" type="submit">تسجيل وإصدار الرمز</button>'+
+        '<div id="qmsg"></div><button class="btn w" type="submit">تسجيل وإصدار الرمز</button>'+
       '</form></div></div>';
   }
 
-  /* ---------- badge ---------- */
-  function viewBadge(){
-    if(!VISITORS.length) return '<div class="card"><div class="bd"><div class="empty">'+
-      '<b>لا يوجد زوار بعد</b>سجّل زائراً أولاً.</div></div></div>';
-    var v=null;
-    for(var i=0;i<VISITORS.length;i++) if(VISITORS[i].code===S.badge) v=VISITORS[i];
-    if(!v) v=VISITORS[0];
-    return '<div class="card"><div class="hd"><h2>الباج</h2>'+
-      '<div class="s">مقاس ٩٠ × ٥٥ ملم</div></div><div class="bd">'+
-      '<div class="bwrap"><div class="badge">'+
-        '<div class="ev">'+esc(EVNAME||"المعرض")+'</div>'+
-        '<div class="nm">'+esc(v.name)+'</div>'+
-        '<div class="qr" id="bq"></div>'+
-        '<div><div class="co">'+esc(v.company||"")+(v.job_title?" · "+esc(v.job_title):"")+'</div>'+
-          '<div class="cd">'+esc(v.code)+'</div></div>'+
-      '</div></div>'+
-      '<button class="btn w" id="print" style="margin-top:14px">طباعة</button>'+
-      '<div style="margin-top:12px"><label class="lbl">اختر زائراً</label>'+
-      '<select class="inp" id="bpick">'+VISITORS.map(function(x){
-        return '<option value="'+esc(x.code)+'"'+(x.code===v.code?" selected":"")+'>'+
-          esc(x.name)+' — '+esc(x.code)+'</option>';}).join("")+'</select></div>'+
+  /* ---------------- badge designer ---------------- */
+  function badgeHTML(v,b,accent){
+    return '<div class="badge" id="thebadge" style="border-color:'+esc(accent)+'33">'+
+      '<div class="ev" style="color:'+esc(accent)+'">'+esc((CUR&&CUR.name_ar)||"المعرض")+'</div>'+
+      '<div class="nm">'+esc(v.name)+'</div>'+
+      '<div class="qr" id="bq"></div>'+
+      '<div>'+
+        (b.company&&v.company?'<div class="co">'+esc(v.company)+(b.title&&v.job_title?" · "+esc(v.job_title):"")+'</div>':
+          (b.title&&v.job_title?'<div class="co">'+esc(v.job_title)+'</div>':''))+
+        (b.country&&v.country?'<div class="co">'+esc(v.country)+'</div>':'')+
+        (b.phrase_ar?'<div class="co" style="color:'+esc(accent)+'">'+esc(b.phrase_ar)+'</div>':'')+
+        (b.show_code?'<div class="cd">'+esc(v.code)+'</div>':'')+
       '</div></div>';
   }
 
-  /* ---------- reports ---------- */
-  function viewRep(){
-    if(!VISITORS.length) return '<div class="card"><div class="bd"><div class="empty">'+
-      '<b>لا توجد بيانات بعد</b></div></div></div>';
-    var inC=VISITORS.filter(function(v){return v.checked_in_at;}).length;
+  function vBadge(){
+    var all=scoped();
+    if(!all.length) return evBar()+'<div class="card"><div class="bd"><div class="empty">'+
+      '<b>لا يوجد زوار بعد</b>سجّل زائراً أولاً لتصمّم الباج عليه.</div></div></div>';
+    var v=null; for(var i=0;i<all.length;i++) if(all[i].code===S.badge) v=all[i];
+    if(!v) v=all[0];
+    var b=badgeOf(CUR), accent=(CUR&&CUR.accent)||"#0d5a92";
+
+    var sws=[["company","إظهار جهة العمل"],["title","إظهار المسمى الوظيفي"],
+             ["country","إظهار الدولة"],["show_code","إظهار الرمز نصياً"]]
+      .map(function(x){ return '<div class="swrow"><span class="t">'+x[1]+'</span>'+
+        '<button class="sw" data-bsw="'+x[0]+'" aria-pressed="'+(!!b[x[0]])+'"></button></div>'; }).join("");
+
+    return evBar()+'<div class="g2 grid">'+
+      '<div class="card"><div class="hd"><h2>معاينة الباج</h2>'+
+        '<div class="s">مقاس ٩٠ × ٥٥ ملم</div></div><div class="bd">'+
+        '<div class="bwrap">'+badgeHTML(v,b,accent)+'</div>'+
+        '<button class="btn w" id="print" style="margin-top:14px">طباعة</button>'+
+        '<div style="margin-top:12px"><label class="lbl">معاينة على زائر</label>'+
+        '<select class="inp" id="bpick">'+all.map(function(x){
+          return '<option value="'+esc(x.code)+'"'+(x.code===v.code?" selected":"")+'>'+
+            esc(x.name)+' — '+esc(x.code)+'</option>';}).join("")+'</select></div>'+
+      '</div></div>'+
+      '<div class="card"><div class="hd"><h2>إعدادات الباج</h2>'+
+        '<div class="s">تُحفظ لهذا المعرض وحده</div></div><div class="bd">'+
+        (ISADMIN?'':'<div class="note w" style="margin-bottom:12px">التعديل متاح للإدارة فقط</div>')+
+        sws+
+        '<div style="margin-top:14px"><label class="lbl">عبارة على الباج (عربي)</label>'+
+          '<input class="inp" id="bpa" maxlength="40" value="'+esc(b.phrase_ar)+'" placeholder="مثال: نسعد بحضوركم"></div>'+
+        '<div style="margin-top:10px"><label class="lbl">عبارة (إنجليزي)</label>'+
+          '<input class="inp" id="bpe" dir="ltr" maxlength="40" value="'+esc(b.phrase_en)+'"></div>'+
+        '<div style="margin-top:14px"><label class="lbl">لون هوية المعرض</label>'+
+          '<div class="colorrow">'+PALETTE.map(function(c){
+            return '<button data-accent="'+c+'" style="background:'+c+'" aria-pressed="'+(accent.toLowerCase()===c)+'" aria-label="'+c+'"></button>';
+          }).join("")+'</div></div>'+
+        '<button class="btn w" id="bsave" style="margin-top:16px"'+(ISADMIN?'':' disabled')+'>حفظ إعدادات الباج</button>'+
+        '<div id="bmsg"></div>'+
+      '</div></div></div>';
+  }
+
+  /* ---------------- reports ---------------- */
+  function vRep(){
+    var all=scoped();
+    if(!all.length) return evBar()+'<div class="card"><div class="bd"><div class="empty"><b>لا توجد بيانات بعد</b></div></div></div>';
+    var inC=all.filter(function(v){return v.checked_in_at;}).length;
     var cats=Object.keys(CATS).map(function(k){
-      var reg=VISITORS.filter(function(v){return (v.category||"visitor")===k;});
+      var reg=all.filter(function(v){return (v.category||"visitor")===k;});
       return {k:k,lab:CATS[k][0],col:CATS[k][2],reg:reg.length,
               att:reg.filter(function(v){return v.checked_in_at;}).length};
     }).filter(function(x){return x.reg>0;});
     var mx=Math.max.apply(null,cats.map(function(x){return x.reg;}).concat([1]));
-    var hours={},mh=1;
-    VISITORS.forEach(function(v){ if(!v.checked_in_at)return; var h=hourOf(v.checked_in_at);
-      if(h<0)return; hours[h]=(hours[h]||0)+1; if(hours[h]>mh)mh=hours[h]; });
-    var hk=Object.keys(hours).sort(function(a,b){return a-b;});
-    var onsite=VISITORS.filter(function(v){return v.source==="onsite";}).length;
+    var hrs={},mh=1;
+    all.forEach(function(v){ if(!v.checked_in_at)return; var h=hr(v.checked_in_at);
+      if(h<0)return; hrs[h]=(hrs[h]||0)+1; if(hrs[h]>mh)mh=hrs[h]; });
+    var hk=Object.keys(hrs).sort(function(a,b){return a-b;});
+    var onsite=all.filter(function(v){return v.source==="onsite";}).length;
 
-    return '<div class="grid g4" style="margin-bottom:16px">'+
-      '<div class="tile"><div class="n">'+VISITORS.length+'</div><div class="k">إجمالي المسجّلين</div></div>'+
+    return evBar()+'<div class="grid g4" style="margin-bottom:16px">'+
+      '<div class="tile"><div class="n">'+all.length+'</div><div class="k">إجمالي المسجّلين</div></div>'+
       '<div class="tile"><div class="n">'+inC+'</div><div class="k">الحضور الفعلي</div></div>'+
       '<div class="tile"><div class="n">'+onsite+'</div><div class="k">سجّلوا في الموقع</div></div>'+
-      '<div class="tile"><div class="n">'+(VISITORS.length?Math.round(inC/VISITORS.length*100):0)+'%</div>'+
-        '<div class="k">نسبة الحضور</div></div></div>'+
+      '<div class="tile"><div class="n">'+(all.length?Math.round(inC/all.length*100):0)+'%</div><div class="k">نسبة الحضور</div></div></div>'+
       '<div class="card"><div class="hd"><h2>التوزيع حسب الفئة</h2>'+
         '<div class="s">الشريط = المسجّلون · الرقم = حضر / مسجّل</div></div><div class="bd">'+
         cats.map(function(x){ return '<div class="bar"><span class="lab">'+esc(x.lab)+'</span>'+
           '<span class="tr"><span class="fi" style="width:'+Math.round(x.reg/mx*100)+'%;background:'+x.col+'"></span></span>'+
-          '<span class="vl">'+x.att+' / '+x.reg+'</span></div>'; }).join("")+'</div>'+
+          '<span class="vl">'+x.att+' / '+x.reg+'</span></div>';}).join("")+'</div>'+
         '<div class="scroll"><table><thead><tr><th>الفئة</th><th>مسجّل</th><th>حضر</th><th>النسبة</th></tr></thead><tbody>'+
-        cats.map(function(x){ return '<tr><td><span class="chip '+catCls(x.k)+'">'+esc(x.lab)+'</span></td>'+
+        cats.map(function(x){ return '<tr><td><span class="chip '+cC(x.k)+'">'+esc(x.lab)+'</span></td>'+
           '<td class="mono">'+x.reg+'</td><td class="mono">'+x.att+'</td>'+
-          '<td class="mono">'+(x.reg?Math.round(x.att/x.reg*100):0)+'%</td></tr>'; }).join("")+
-        '<tr style="font-weight:700"><td>الإجمالي</td><td class="mono">'+VISITORS.length+'</td>'+
-        '<td class="mono">'+inC+'</td><td class="mono">'+(VISITORS.length?Math.round(inC/VISITORS.length*100):0)+'%</td></tr>'+
+          '<td class="mono">'+(x.reg?Math.round(x.att/x.reg*100):0)+'%</td></tr>';}).join("")+
+        '<tr style="font-weight:700"><td>الإجمالي</td><td class="mono">'+all.length+'</td>'+
+        '<td class="mono">'+inC+'</td><td class="mono">'+(all.length?Math.round(inC/all.length*100):0)+'%</td></tr>'+
         '</tbody></table></div></div>'+
       '<div class="card"><div class="hd"><h2>ساعات الدخول</h2></div><div class="bd">'+
         (hk.length?hk.map(function(h){ return '<div class="bar"><span class="lab mono">'+
-          String(h).padStart(2,"0")+':00</span>'+
-          '<span class="tr"><span class="fi" style="width:'+Math.round(hours[h]/mh*100)+'%;background:var(--brand)"></span></span>'+
-          '<span class="vl">'+hours[h]+'</span></div>'; }).join("")
-          :'<div class="empty" style="padding:20px">لا دخول مسجّل بعد</div>')+
-      '</div></div>';
+          String(h).padStart(2,"0")+':00</span><span class="tr"><span class="fi" style="width:'+
+          Math.round(hrs[h]/mh*100)+'%;background:var(--brand)"></span></span>'+
+          '<span class="vl">'+hrs[h]+'</span></div>';}).join("")
+          :'<div class="empty" style="padding:20px">لا دخول مسجّل بعد</div>')+'</div></div>';
   }
 
-  var VIEWS={gate:viewGate,list:viewList,quick:viewQuick,badge:viewBadge,rep:viewRep};
+  /* ---------------- events ---------------- */
+  function vEvents(){
+    var form="";
+    if(S.edit!==null){
+      var e=S.edit;
+      form='<div class="card"><div class="hd"><h2>'+(e.id?"تعديل معرض":"معرض جديد")+'</h2></div><div class="bd grid">'+
+        '<div class="g2 grid">'+
+          '<div><label class="lbl" for="e_ar">اسم المعرض (عربي) *</label>'+
+            '<input class="inp" id="e_ar" maxlength="80" value="'+esc(e.name_ar||"")+'"></div>'+
+          '<div><label class="lbl" for="e_en">اسم المعرض (إنجليزي)</label>'+
+            '<input class="inp" id="e_en" dir="ltr" maxlength="80" value="'+esc(e.name_en||"")+'"></div>'+
+        '</div>'+
+        '<div><label class="lbl" for="e_slug">معرّف الرابط *</label>'+
+          '<input class="inp" id="e_slug" dir="ltr" maxlength="50" value="'+esc(e.slug||"")+'" placeholder="jeddah-2026">'+
+          '<div class="s" style="font-size:11.5px;color:var(--ink-3);margin-top:4px">'+
+            'حروف إنجليزية وأرقام وشرطات — يصير رابط التسجيل: ‎/?e=المعرّف</div></div>'+
+        '<div class="g2 grid">'+
+          '<div><label class="lbl" for="e_op">يفتح التسجيل</label>'+
+            '<input class="inp" id="e_op" type="datetime-local" value="'+esc(dIn(e.opens_at))+'"></div>'+
+          '<div><label class="lbl" for="e_cl">يغلق التسجيل</label>'+
+            '<input class="inp" id="e_cl" type="datetime-local" value="'+esc(dIn(e.closes_at))+'"></div>'+
+        '</div>'+
+        '<div><label class="lbl" for="e_note">عبارة ترحيبية في صفحة التسجيل</label>'+
+          '<input class="inp" id="e_note" maxlength="120" value="'+esc(e.note_ar||"")+'" placeholder="سجّل بياناتك ويصلك رمز الدخول فوراً"></div>'+
+        '<div><label class="lbl" for="e_logo">رابط شعار المعرض (اختياري)</label>'+
+          '<input class="inp" id="e_logo" dir="ltr" maxlength="400" value="'+esc(e.logo_url||"")+'" placeholder="https://..."></div>'+
+        '<div class="swrow"><span class="t">التسجيل مفتوح</span>'+
+          '<button class="sw" id="e_open" aria-pressed="'+(e.is_open!==false)+'"></button></div>'+
+        '<div id="emsg"></div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+          '<button class="btn" id="esave" style="flex:1">حفظ</button>'+
+          '<button class="btn ghost" id="ecancel" style="flex:1">إلغاء</button>'+
+        '</div></div></div>';
+    }
+
+    var cards=EVENTS.map(function(e){
+      return '<div class="evcard">'+
+        '<div class="r1"><span style="width:12px;height:12px;border-radius:4px;background:'+esc(e.accent||"#0d5a92")+'"></span>'+
+          '<b>'+esc(e.name_ar)+'</b>'+
+          (e.is_open?'<span class="chip g">مفتوح</span>':'<span class="chip n">مغلق</span>')+
+          (CUR&&CUR.id===e.id?'<span class="chip b">المعرض الحالي</span>':'')+
+          '<span style="margin-inline-start:auto;display:flex;gap:6px">'+
+            (ISADMIN?'<button class="btn ghost sm" data-eedit="'+esc(e.id)+'">تعديل</button>':'')+
+            (ISADMIN&&e.registered===0?'<button class="btn ghost sm" data-edel="'+esc(e.id)+'">حذف</button>':'')+
+            '<button class="btn ghost sm" data-euse="'+esc(e.id)+'">اختيار</button>'+
+          '</span></div>'+
+        '<div class="r1"><span class="lnk">'+esc(regLink(e))+'</span>'+
+          '<button class="btn ghost sm" data-ecopy="'+esc(e.slug)+'">نسخ</button></div>'+
+        '<div class="st"><span>مسجّل <b>'+e.registered+'</b></span>'+
+          '<span>حضر <b>'+e.attended+'</b></span>'+
+          '<span>نسبة الحضور <b>'+(e.registered?Math.round(e.attended/e.registered*100):0)+'%</b></span></div>'+
+      '</div>';
+    }).join("");
+
+    return form+'<div class="card"><div class="hd"><h2>المعارض</h2>'+
+      (ISADMIN?'<button class="btn sm" id="enew" style="margin-inline-start:auto">+ معرض جديد</button>':'')+
+      '</div><div class="bd">'+(EVENTS.length?cards:'<div class="empty"><b>لا توجد معارض</b></div>')+'</div></div>';
+  }
+
+  var VIEWS={gate:vGate,list:vList,quick:vQuick,badge:vBadge,rep:vRep,events:vEvents};
 
   function render(){
-    var showApp=!!SESSION;
-    $("#top").hidden=!showApp; $("#tabs").hidden=!showApp;
-    if(!showApp){ $("#view").innerHTML=viewLogin(); return; }
-    $("#evname").textContent=EVNAME||"لوحة الاستقبال";
+    var show=!!SESSION;
+    $("#top").hidden=!show; $("#tabs").hidden=!show;
+    if(!show){ $("#view").innerHTML=vLogin(); return; }
+    $("#evname").textContent=(CUR&&CUR.name_ar)||"لوحة النظام";
     var ts=document.querySelectorAll("[data-tab]");
     for(var i=0;i<ts.length;i++) ts[i].setAttribute("aria-pressed",String(ts[i].dataset.tab===S.tab));
     $("#view").innerHTML=VIEWS[S.tab]();
-    if(S.tab==="badge"&&VISITORS.length){
-      var v=null; for(var j=0;j<VISITORS.length;j++) if(VISITORS[j].code===S.badge) v=VISITORS[j];
-      if(!v) v=VISITORS[0];
-      qr($("#bq"),v.code,160);
+    if(S.tab==="badge"){
+      var all=scoped(),v=null;
+      for(var j=0;j<all.length;j++) if(all[j].code===S.badge) v=all[j];
+      if(!v&&all.length) v=all[0];
+      if(v) qr($("#bq"),v.code,160);
     }
     if(S.tab==="gate"){ var gc=$("#gc"); if(gc) gc.focus(); }
   }
 
-  function toast(sel,cls,msg){
-    var el=$(sel); if(!el)return;
+  function toast(sel,cls,msg){ var el=$(sel); if(!el)return;
     el.innerHTML='<div class="note '+cls+'">'+msg+'</div>';
-    setTimeout(function(){ if(el) el.innerHTML=""; },4000);
-  }
+    setTimeout(function(){ if(el) el.innerHTML=""; },4000); }
 
   function loadVisitors(){
-    return sb.from("visitors").select("*").order("created_at",{ascending:false}).limit(1000)
-      .then(function(res){
-        if(res.error){ VISITORS=[]; return; }
-        VISITORS=res.data||[];
-      });
+    return sb.from("visitors").select("*").order("created_at",{ascending:false}).limit(2000)
+      .then(function(r){ VISITORS=r.error?[]:(r.data||[]); });
   }
-
-  function loadEvent(){
-    return sb.rpc("event_info",{p_slug:EVENT_SLUG}).then(function(res){
-      var d=(res&&res.data)||{}; if(d.ok) EVNAME=d.name_ar||"";
-    },function(){});
+  function loadEvents(){
+    return sb.rpc("list_events").then(function(r){
+      var d=(r&&r.data)||{};
+      EVENTS=(d.ok&&d.events)?d.events:[];
+      if(EVENTS.length){
+        var keep=CUR?EVENTS.filter(function(e){return e.id===CUR.id;})[0]:null;
+        CUR=keep||EVENTS.filter(function(e){return e.is_open;})[0]||EVENTS[0];
+      } else CUR=null;
+    },function(){ EVENTS=[]; });
   }
+  function loadRole(){
+    return sb.from("staff").select("role").then(function(r){
+      ISADMIN=!r.error && (r.data||[]).some(function(x){return x.role==="admin";});
+    },function(){ ISADMIN=false; });
+  }
+  function reloadAll(){ return Promise.all([loadEvents(),loadVisitors(),loadRole()]); }
 
-  /* ---------- events ---------- */
+  /* ---------------- interactions ---------------- */
   document.addEventListener("click",function(ev){
     var b=ev.target.closest("button"); if(!b)return;
 
-    if(b.dataset.tab){ S.tab=b.dataset.tab; S.gate=null; render(); return; }
+    if(b.dataset.tab){ S.tab=b.dataset.tab; S.gate=null; S.edit=null; render(); return; }
     if(b.dataset.badge){ S.badge=b.dataset.badge; S.tab="badge"; render(); return; }
     if(b.id==="print"){ window.print(); return; }
-    if(b.id==="logout"){ sb.auth.signOut().then(function(){ SESSION=null; VISITORS=[]; render(); }); return; }
-    if(b.id==="refresh"){ b.disabled=true; loadVisitors().then(function(){ render(); }); return; }
+    if(b.id==="logout"){ sb.auth.signOut().then(function(){ SESSION=null; VISITORS=[]; EVENTS=[]; CUR=null; render(); }); return; }
+    if(b.id==="refresh"){ b.disabled=true; reloadAll().then(render); return; }
 
-    if(b.id==="csv"){
-      if(!VISITORS.length) return;
-      var L=["code,name,company,job_title,category,phone,email,source,registered_at,checked_in_at"];
-      function c(x){ x=String(x==null?"":x); return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x; }
-      VISITORS.forEach(function(v){ L.push([c(v.code),c(v.name),c(v.company),c(v.job_title),
-        c(catName(v.category)),c("966"+v.phone),c(v.email),c(v.source),
-        c(v.created_at),c(v.checked_in_at)].join(",")); });
-      var blob=new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"});
-      var a=document.createElement("a");
-      a.href=URL.createObjectURL(blob); a.download="visitors.csv";
-      document.body.appendChild(a); a.click();
-      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000);
+    if(b.dataset.euse){ var u=EVENTS.filter(function(e){return e.id===b.dataset.euse;})[0];
+      if(u){ CUR=u; S.tab="list"; render(); } return; }
+
+    if(b.dataset.ecopy){
+      var link=location.origin+"/?e="+b.dataset.ecopy;
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(link).then(function(){ b.textContent="تم النسخ";
+          setTimeout(function(){ b.textContent="نسخ"; },1500); },function(){});
+      } else { window.prompt("انسخ الرابط:", link); }
       return;
     }
 
-    if(b.id==="su"){
-      var e=($("#le")||{}).value||"", p=($("#lp")||{}).value||"";
-      if(!e||!p){ S.msg="اكتب البريد وكلمة المرور أولاً"; return render(); }
+    if(b.id==="enew"){ S.edit={is_open:true}; render(); return; }
+    if(b.dataset.eedit){ S.edit=EVENTS.filter(function(e){return e.id===b.dataset.eedit;})[0]||null; render(); return; }
+    if(b.id==="ecancel"){ S.edit=null; render(); return; }
+    if(b.id==="e_open"){ var on=b.getAttribute("aria-pressed")==="true";
+      b.setAttribute("aria-pressed",String(!on)); return; }
+
+    if(b.dataset.edel){
+      if(!confirm("حذف هذا المعرض؟")) return;
       b.disabled=true;
-      sb.auth.signUp({email:e,password:p}).then(function(res){
-        b.disabled=false;
-        S.msg = res.error ? ("تعذّر الإنشاء: "+res.error.message)
-              : "تم إنشاء الحساب. شغّل سطر إضافة الموظف في setup.sql ثم ادخل.";
-        render();
+      sb.rpc("delete_event",{p_id:b.dataset.edel}).then(function(r){
+        var d=(r&&r.data)||{};
+        if(d.ok){ reloadAll().then(render); }
+        else { b.disabled=false; alert(d.error==="has_visitors"
+          ? "لا يمكن حذف معرض فيه زوار ("+d.count+")" : "تعذّر الحذف"); }
       });
+      return;
+    }
+
+    if(b.id==="esave"){
+      var e=S.edit||{};
+      var nameAr=($("#e_ar")||{}).value||"", slug=($("#e_slug")||{}).value||"";
+      if(nameAr.trim().length<2) return toast("#emsg","d","اكتب اسم المعرض");
+      if(slug.trim().length<2)   return toast("#emsg","d","اكتب معرّف الرابط");
+      var sw=$("#e_open");
+      b.disabled=true;
+      sb.rpc("save_event",{
+        p_id: e.id||null, p_slug: slug, p_name_ar: nameAr,
+        p_name_en: ($("#e_en")||{}).value||null,
+        p_opens:  (($("#e_op")||{}).value)||null,
+        p_closes: (($("#e_cl")||{}).value)||null,
+        p_is_open: sw ? sw.getAttribute("aria-pressed")==="true" : true,
+        p_logo:   ($("#e_logo")||{}).value||null,
+        p_note_ar:($("#e_note")||{}).value||null,
+        p_note_en: null,
+        p_accent: e.accent||"#0d5a92",
+        p_badge:  e.badge||null
+      }).then(function(r){
+        b.disabled=false;
+        var d=(r&&r.data)||{};
+        if(r.error) return toast("#emsg","d","تعذّر الحفظ");
+        if(d.ok){ S.edit=null; reloadAll().then(render); return; }
+        toast("#emsg","d", d.error==="slug_taken" ? "هذا المعرّف مستخدم في معرض آخر"
+            : d.error==="forbidden" ? "الإنشاء والتعديل للإدارة فقط"
+            : d.error==="bad_slug"  ? "معرّف الرابط غير صالح"
+            : "تعذّر الحفظ");
+      });
+      return;
+    }
+
+    if(b.dataset.bsw){
+      if(!ISADMIN) return;
+      var on2=b.getAttribute("aria-pressed")==="true";
+      b.setAttribute("aria-pressed",String(!on2));
+      return;
+    }
+    if(b.dataset.accent){
+      if(!ISADMIN) return;
+      var row=b.parentNode.querySelectorAll("[data-accent]");
+      for(var k=0;k<row.length;k++) row[k].setAttribute("aria-pressed",String(row[k]===b));
+      return;
+    }
+
+    if(b.id==="bsave"){
+      if(!CUR||!ISADMIN) return;
+      var nb={}, sws=document.querySelectorAll("[data-bsw]");
+      for(var m=0;m<sws.length;m++) nb[sws[m].dataset.bsw]=sws[m].getAttribute("aria-pressed")==="true";
+      nb.phrase_ar=($("#bpa")||{}).value||"";
+      nb.phrase_en=($("#bpe")||{}).value||"";
+      var acc=CUR.accent||"#0d5a92";
+      var sel=document.querySelector('[data-accent][aria-pressed="true"]');
+      if(sel) acc=sel.dataset.accent;
+      b.disabled=true;
+      sb.rpc("save_event",{
+        p_id:CUR.id, p_slug:CUR.slug, p_name_ar:CUR.name_ar, p_name_en:CUR.name_en,
+        p_opens:CUR.opens_at, p_closes:CUR.closes_at, p_is_open:CUR.is_open,
+        p_logo:CUR.logo_url, p_note_ar:CUR.note_ar, p_note_en:CUR.note_en,
+        p_accent:acc, p_badge:nb
+      }).then(function(r){
+        b.disabled=false;
+        var d=(r&&r.data)||{};
+        if(d.ok){ reloadAll().then(function(){ render(); toast("#bmsg","g","تم حفظ إعدادات الباج"); }); }
+        else toast("#bmsg","d", d.error==="forbidden"?"التعديل للإدارة فقط":"تعذّر الحفظ");
+      });
+      return;
+    }
+
+    if(b.id==="csv"){
+      var all=scoped(); if(!all.length) return;
+      var L=["code,name,company,job_title,country,category,phone,email,source,registered_at,checked_in_at"];
+      function c(x){ x=String(x==null?"":x); return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x; }
+      all.forEach(function(v){ L.push([c(v.code),c(v.name),c(v.company),c(v.job_title),c(v.country),
+        c(cN(v.category)),c("966"+v.phone),c(v.email),c(v.source),
+        c(v.created_at),c(v.checked_in_at)].join(",")); });
+      var blob=new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"});
+      var a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download=((CUR&&CUR.slug)||"visitors")+".csv";
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000);
       return;
     }
   });
 
   document.addEventListener("change",function(ev){
     if(ev.target.id==="bpick"){ S.badge=ev.target.value; render(); }
+    if(ev.target.id==="evpick"){
+      var pick=EVENTS.filter(function(e){return e.id===ev.target.value;})[0];
+      if(pick){ CUR=pick; S.badge=null; render(); }
+    }
   });
 
   document.addEventListener("input",function(ev){
     var t=ev.target;
-    if(t.id==="sbx"){
-      S.q=t.value; $("#view").innerHTML=viewList();
-      var sb2=$("#sbx"); if(sb2){ sb2.value=S.q; sb2.focus();
-        try{ sb2.setSelectionRange(S.q.length,S.q.length); }catch(e){} }
-      return;
-    }
+    if(t.id==="sbx"){ S.q=t.value; $("#view").innerHTML=vList();
+      var s2=$("#sbx"); if(s2){ s2.value=S.q; s2.focus();
+        try{ s2.setSelectionRange(S.q.length,S.q.length); }catch(e){} } return; }
     if(t.id==="gc"){ t.value=t.value.replace(/\D/g,"").slice(0,8); return; }
+    if(t.id==="e_slug"){ t.value=t.value.toLowerCase().replace(/[^a-z0-9\-]+/g,"-"); return; }
   });
 
   document.addEventListener("submit",function(ev){
     ev.preventDefault();
 
     if(ev.target.id==="lf"){
-      var e=$("#le").value, p=$("#lp").value, lb=$("#lb");
-      lb.disabled=true; lb.innerHTML='<span class="spin"></span> جارِ الدخول…';
-      sb.auth.signInWithPassword({email:e,password:p}).then(function(res){
-        if(res.error){ S.msg="بيانات الدخول غير صحيحة"; render(); return; }
-        SESSION=res.data.session;
-        Promise.all([loadEvent(),loadVisitors()]).then(function(){ S.msg=""; render(); });
+      var lb=$("#lb"); lb.disabled=true; lb.innerHTML='<span class="spin"></span> جارِ الدخول…';
+      sb.auth.signInWithPassword({email:$("#le").value,password:$("#lp").value}).then(function(r){
+        if(r.error){ S.msg="بيانات الدخول غير صحيحة"; render(); return; }
+        SESSION=r.data.session;
+        reloadAll().then(function(){ S.msg=""; render(); });
       });
       return;
     }
@@ -461,52 +675,40 @@ var EVENT_SLUG = "jeddah-2026";
     if(ev.target.id==="gf"){
       var code=($("#gc").value||"").replace(/\D/g,"");
       if(code.length!==8){ S.gate={kind:"no",title:"رمز غير مكتمل",mid:"الرمز ٨ أرقام"}; render(); return; }
-      sb.rpc("do_checkin",{p_code:code}).then(function(res){
-        var r=(res&&res.data)||{};
-        if(res.error||r.error==="forbidden"){
-          S.gate={kind:"no",title:"غير مصرّح",mid:"حسابك غير مضاف لجدول الموظفين"};
-        } else if(r.ok){
-          S.gate={kind:"ok",title:r.name,
-            mid:(r.company?r.company+" · ":"")+"تم تسجيل الدخول "+hhmm(r.at),
-            chip:catName(r.category),cls:catCls(r.category)};
-        } else if(r.error==="already"){
-          S.gate={kind:"dup",title:r.name,mid:"دخل مسبقاً الساعة "+hhmm(r.at),
-            chip:catName(r.category),cls:catCls(r.category)};
-        } else if(r.error==="unknown"){
-          S.gate={kind:"no",title:"كود غير معروف",mid:"لا يوجد زائر بهذا الرمز: "+code};
-        } else {
-          S.gate={kind:"no",title:"تعذّر تسجيل الدخول",mid:""};
-        }
-        loadVisitors().then(function(){ render(); });
+      sb.rpc("do_checkin",{p_code:code}).then(function(r){
+        var d=(r&&r.data)||{};
+        if(r.error||d.error==="forbidden") S.gate={kind:"no",title:"غير مصرّح",mid:"حسابك غير مضاف لجدول الموظفين"};
+        else if(d.ok) S.gate={kind:"ok",title:d.name,
+          mid:(d.company?d.company+" · ":"")+"تم تسجيل الدخول "+hm(d.at),chip:cN(d.category),cls:cC(d.category)};
+        else if(d.error==="already") S.gate={kind:"dup",title:d.name,mid:"دخل مسبقاً الساعة "+hm(d.at),
+          chip:cN(d.category),cls:cC(d.category)};
+        else if(d.error==="unknown") S.gate={kind:"no",title:"كود غير معروف",mid:"لا يوجد زائر بهذا الرمز: "+code};
+        else S.gate={kind:"no",title:"تعذّر تسجيل الدخول",mid:""};
+        loadVisitors().then(render);
       });
       return;
     }
 
     if(ev.target.id==="qf"){
-      var n=($("#qn").value||"").trim(), ph=digits($("#qp").value||"");
+      if(!CUR) return toast("#qmsg","d","اختر معرضاً أولاً");
+      var n=($("#qn").value||"").trim(), ph=dg($("#qp").value||"");
       if(n.length<2) return toast("#qmsg","d","اكتب الاسم الكامل");
       if(!/^5\d{8}$/.test(ph)) return toast("#qmsg","d","رقم الجوال غير صحيح");
-      sb.rpc("quick_register",{p_event_slug:EVENT_SLUG,p_name:n,p_phone:ph}).then(function(res){
-        var r=(res&&res.data)||{};
-        if(res.error) return toast("#qmsg","d","تعذّر التسجيل");
-        if(r.ok){
-          $("#qn").value=""; $("#qp").value="";
-          loadVisitors().then(function(){
-            toast("#qmsg","g","تم التسجيل — الرمز <b>"+esc(r.code)+"</b>");
-          });
-        } else if(r.error==="duplicate"){
-          toast("#qmsg","w","مسجّل مسبقاً — الرمز <b>"+esc(r.code)+"</b>");
-        } else if(r.error==="forbidden"){
-          toast("#qmsg","d","حسابك غير مضاف لجدول الموظفين");
-        } else {
-          toast("#qmsg","d","تعذّر التسجيل");
-        }
+      sb.rpc("quick_register",{p_event_slug:CUR.slug,p_name:n,p_phone:ph}).then(function(r){
+        var d=(r&&r.data)||{};
+        if(r.error) return toast("#qmsg","d","تعذّر التسجيل");
+        if(d.ok){ $("#qn").value=""; $("#qp").value="";
+          loadVisitors().then(function(){ toast("#qmsg","g","تم التسجيل — الرمز <b>"+esc(d.code)+"</b>"); }); }
+        else if(d.error==="duplicate") toast("#qmsg","w","مسجّل مسبقاً — الرمز <b>"+esc(d.code)+"</b>");
+        else if(d.error==="forbidden") toast("#qmsg","d","حسابك غير مضاف لجدول الموظفين");
+        else if(d.error==="closed")    toast("#qmsg","w","التسجيل مغلق لهذا المعرض");
+        else toast("#qmsg","d","تعذّر التسجيل");
       });
       return;
     }
   });
 
-  /* ---------- boot ---------- */
+  /* ---------------- boot ---------------- */
   try{
     if(SUPABASE_URL.indexOf("XXXX")>=0) throw new Error("لم تُضبط إعدادات Supabase بعد");
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
@@ -515,13 +717,13 @@ var EVENT_SLUG = "jeddah-2026";
   }
 
   if(sb){
-    sb.auth.getSession().then(function(res){
-      SESSION=(res&&res.data&&res.data.session)||null;
+    sb.auth.getSession().then(function(r){
+      SESSION=(r&&r.data&&r.data.session)||null;
       if(!SESSION){ render(); return; }
-      Promise.all([loadEvent(),loadVisitors()]).then(function(){ render(); });
+      reloadAll().then(render);
     });
     sb.auth.onAuthStateChange(function(_e,s){
-      if(!s && SESSION){ SESSION=null; VISITORS=[]; render(); }
+      if(!s&&SESSION){ SESSION=null; VISITORS=[]; EVENTS=[]; CUR=null; render(); }
     });
   }
 })();
